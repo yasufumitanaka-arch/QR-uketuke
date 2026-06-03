@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
@@ -27,7 +27,7 @@
     </div>
     <div class="text-sm bg-blue-700 px-3 py-1 rounded-full flex items-center gap-1">
       <span class="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse"></span>
-      マルチカメラ対応
+      高信頼性データ連携モデル
     </div>
   </header>
 
@@ -79,7 +79,7 @@
           <i data-lucide="camera-off" class="w-12 h-12 text-slate-400 mb-2"></i>
           <p class="font-semibold">カメラが起動できません</p>
           <p class="text-xs text-slate-400 mt-1 max-w-xs">ブラウザのカメラアクセス権限を許可し、ページを再読み込みしてください。</p>
-          <button onclick="initCamera()" class="mt-4 px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg text-xs transition font-semibold">カメラを再試行</button>
+          <button onclick="initCamera()" class="mt-4 px-4 py-2 bg-blue-50 hover:bg-blue-600 rounded-lg text-xs transition font-semibold">カメラを再試行</button>
         </div>
       </div>
 
@@ -94,6 +94,12 @@
             <label class="block font-semibold text-slate-600">Google Apps Script (GAS) Webアプリ URL:</label>
             <input type="text" id="gas-url" class="w-full p-2 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none" placeholder="https://script.google.com/macros/s/.../exec">
             <p class="text-[10px] text-slate-400">※URLを空欄にすると、テスト送信モード（スプレッドシートには書き込まれません）になります。</p>
+            
+            <!-- テスト送信ボタン -->
+            <button id="btn-test-connection" class="mt-2 w-full py-1.5 px-3 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-semibold text-xs rounded border border-slate-300 flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="send" class="w-3 h-3"></i>
+              <span>スプレッドシートへの疎通テスト</span>
+            </button>
           </div>
         </details>
       </div>
@@ -221,6 +227,7 @@
     const gasUrlInput = document.getElementById('gas-url');
     const btnSwitchCamera = document.getElementById('btn-switch-camera');
     const cameraDirectionLabel = document.getElementById('camera-direction-label');
+    const btnTestConnection = document.getElementById('btn-test-connection');
 
     // 画面状態のDOM
     const stateIdle = document.getElementById('state-idle');
@@ -255,9 +262,9 @@
     // 接続されているカメラデバイスのリストを取得する関数
     async function getCameraDevices() {
       try {
-        // デバイス一覧を取得する前に一度カメラ権限を要求（ラベル取得に必須）
+        // デバイス一覧を取得する前に一度カメラ権限を要求
         const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        tempStream.getTracks().forEach(track => track.stop()); // 一時取得したストリームは即座に停止
+        tempStream.getTracks().forEach(track => track.stop()); // 即座に停止
 
         const devices = await navigator.mediaDevices.enumerateDevices();
         videoDevices = devices.filter(device => device.kind === 'videoinput');
@@ -287,7 +294,6 @@
 
         // デバイスリストが存在する場合の条件分岐
         if (videoDevices.length > 0) {
-          // 選択されたインデックスのデバイスを使用
           const selectedDevice = videoDevices[currentDeviceIndex];
           constraints = {
             video: {
@@ -297,7 +303,6 @@
             }
           };
           
-          // ラベル名からインカメラかアウトカメラかをある程度推測して反転制御する
           const label = selectedDevice.label.toLowerCase();
           if (label.includes('front') || label.includes('user') || label.includes('内側') || label.includes('インカメラ')) {
             canvas.classList.add('mirror');
@@ -307,7 +312,6 @@
             cameraDirectionLabel.textContent = `アウトカメラ: ${selectedDevice.label.substring(0, 15)}...`;
           }
         } else {
-          // デバイス特定ができない場合のデフォルト設定（スマホや一部のChromebook用）
           constraints = {
             video: { 
               facingMode: currentFacingMode, 
@@ -325,13 +329,11 @@
           }
         }
 
-        // カメラストリームの開始
         stream = await navigator.mediaDevices.getUserMedia(constraints);
         video.srcObject = stream;
         video.setAttribute('playsinline', true);
         video.play();
         
-        // 再描画ループ開始
         if (!animationFrameId) {
           requestAnimationFrame(tick);
         }
@@ -342,92 +344,67 @@
       }
     }
 
-    // カメラの切り替え（ボタンが押されたとき）
+    // カメラの切り替え
     async function switchCamera() {
       if (videoDevices.length > 1) {
-        // 複数デバイスがある場合はインデックスをローテーション
         currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
-        showToast(`カメラを切り替えます...`, "refresh-cw");
+        showToast("カメラを切り替えます...", "refresh-cw");
         await initCamera();
       } else {
-        // デバイスリストが1つ以下だが、facingModeの切り替えが可能な場合（フォールバック）
         currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
         localStorage.setItem('camera_facing_mode', currentFacingMode);
-        showToast(`カメラの向きを切り替えます...`, "refresh-cw");
+        showToast("カメラの向きを切り替えます...", "refresh-cw");
         await initCamera();
       }
     }
 
-    // カメラ切り替えボタンのイベントリスナー
     btnSwitchCamera.addEventListener('click', switchCamera);
 
-    // カメラ映像の解析ループ（毎フレーム実行）
+    // カメラ映像の解析ループ
     function tick() {
       if (video.readyState === video.HAVE_ENOUGH_DATA && scanning) {
-        // キャンバスサイズを映像に合わせる
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         
-        // ビデオをキャンバスに描画
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         
-        // 現在のキャンバスイメージデータを取得
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        
-        // jsQRを用いてQRコードをデコード
         const code = jsQR(imageData.data, imageData.width, imageData.height, {
           inversionAttempts: "dontInvert",
         });
 
         if (code) {
-          // QRコード検出時
           handleQRCodeDetected(code.data);
         }
       }
-      // ループ維持
       animationFrameId = requestAnimationFrame(tick);
     }
 
-    // QRコードが読み取られた時の処理
     function handleQRCodeDetected(data) {
-      scanning = false; // スキャンを一時停止
+      scanning = false; 
       scannedData = data;
-      
-      // 効果音を鳴らす
       playBeep();
-
-      // UIを更新
       qrContentRaw.textContent = data;
-
-      // データのパース（CSV、JSON、改行区切りなどを判定）
       parseAndDisplayFields(data);
-
-      // ステート切り替え
       switchState('confirm');
     }
 
-    // データの種類を自動判別してきれいに表示
     function parseAndDisplayFields(data) {
       parsedFields.innerHTML = '';
       let fields = [];
 
       try {
-        // JSONの場合
         if (data.trim().startsWith('{') && data.trim().endsWith('}')) {
           const obj = JSON.parse(data);
           fields = Object.entries(obj).map(([key, val]) => ({ label: key, value: val }));
         } 
-        // カンマ区切りの場合 (例: 名前,所属,ID)
         else if (data.includes(',')) {
           fields = data.split(',').map((val, idx) => ({ label: `項目 ${idx + 1}`, value: val.trim() }));
         }
-        // 改行区切りの場合
         else if (data.includes('\n')) {
           fields = data.split('\n').map((val, idx) => ({ label: `行 ${idx + 1}`, value: val.trim() }));
         }
-      } catch (e) {
-        // パース失敗時はそのままプレーンテキスト処理
-      }
+      } catch (e) {}
 
       if (fields.length > 0) {
         parsedDataContainer.classList.remove('hidden');
@@ -445,7 +422,6 @@
       }
     }
 
-    // ステート管理の切り替え関数
     function switchState(state) {
       stateIdle.classList.add('hidden');
       stateConfirm.classList.add('hidden');
@@ -464,6 +440,15 @@
       }
     }
 
+    // フォームデータ形式（URLSearchParams）を作成するヘルパー
+    function createFormData(action, rawData) {
+      const params = new URLSearchParams();
+      params.append('action', action);
+      params.append('rawData', rawData);
+      params.append('timestamp', new Date().toISOString());
+      return params.toString();
+    }
+
     // 受付確定ボタンの処理
     async function submitReception() {
       const gasUrl = gasUrlInput.value.trim();
@@ -472,7 +457,6 @@
 
       switchState('processing');
 
-      // テストモード（GASのURLが指定されていない場合）
       if (!gasUrl) {
         setTimeout(() => {
           showToast("【テストモード】スプレッドシートURL未設定のためデモ完了します", "info");
@@ -481,29 +465,23 @@
         return;
       }
 
-      // 送信用パラメータ構築
-      const payload = {
-        action: 'register',
-        rawData: scannedData,
-        timestamp: new Date().toISOString()
-      };
-
-      // 指数バックオフによる再試行処理 (MAX 5回)
+      const bodyData = createFormData('register', scannedData);
       const maxRetries = 5;
       let delay = 1000;
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          // fetch によるPOSTリクエスト
-          const response = await fetch(gasUrl, {
+          // 最も高い確率で成功するURLエンコードフォーム形式で送信
+          await fetch(gasUrl, {
             method: 'POST',
-            mode: 'no-cors', // GASへの単純POST用の制限回避設定
+            mode: 'no-cors', 
             headers: {
-              'Content-Type': 'application/json',
+              'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: JSON.stringify(payload)
+            body: bodyData
           });
 
+          // 通信完了（スプレッドシートへの書き込みがキックされた）
           handleSuccess();
           return;
 
@@ -511,7 +489,7 @@
           console.error(`Attempt ${attempt} failed:`, error);
           if (attempt === maxRetries) {
             switchState('confirm');
-            showToast("送信に失敗しました。通信環境を確認し再度お試しください。", "x-circle");
+            showToast("送信に失敗しました。GASのデプロイや権限設定を確認してください。", "x-circle");
             return;
           }
           await new Promise(resolve => setTimeout(resolve, delay));
@@ -520,7 +498,42 @@
       }
     }
 
-    // 受付成功時の処理
+    // 単体の疎通テストを実行する関数
+    async function testConnection() {
+      const gasUrl = gasUrlInput.value.trim();
+      if (!gasUrl) {
+        showToast("URLを入力してからテストを実行してください。", "info");
+        return;
+      }
+
+      btnTestConnection.disabled = true;
+      btnTestConnection.classList.add('opacity-50');
+      showToast("テストデータを送信中...", "send");
+
+      const bodyData = createFormData('test', 'TEST_CONNECTION_OK');
+
+      try {
+        await fetch(gasUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: bodyData
+        });
+        
+        showToast("テスト送信完了！スプレッドシートをご確認ください。", "check-circle-2");
+      } catch (error) {
+        console.error("疎通テストエラー:", error);
+        showToast("送信失敗。CORSエラーまたはURLが無効です。", "x-circle");
+      } finally {
+        btnTestConnection.disabled = false;
+        btnTestConnection.classList.remove('opacity-50');
+      }
+    }
+
+    btnTestConnection.addEventListener('click', testConnection);
+
     function handleSuccess() {
       const now = new Date();
       const timeStr = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -530,7 +543,6 @@
       playSuccessChime();
     }
 
-    // 各ボタンのイベントリスナー設定
     btnCancel.addEventListener('click', () => {
       switchState('idle');
     });
@@ -543,7 +555,6 @@
       switchState('idle');
     });
 
-    // ピピッというビープ音（Web Audio API を使って合成）
     function playBeep() {
       try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -562,28 +573,25 @@
       } catch (e) {}
     }
 
-    // 受付完了チャイム音
     function playSuccessChime() {
       try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
-        // 1音目
         const osc1 = audioCtx.createOscillator();
         const gain1 = audioCtx.createGain();
         osc1.connect(gain1);
         gain1.connect(audioCtx.destination);
-        osc1.frequency.value = 523.25; // C5
+        osc1.frequency.value = 523.25; 
         gain1.gain.setValueAtTime(0.08, audioCtx.currentTime);
         osc1.start();
         osc1.stop(audioCtx.currentTime + 0.15);
 
-        // 2音目
         setTimeout(() => {
           const osc2 = audioCtx.createOscillator();
           const gain2 = audioCtx.createGain();
           osc2.connect(gain2);
           gain2.connect(audioCtx.destination);
-          osc2.frequency.value = 659.25; // E5
+          osc2.frequency.value = 659.25; 
           gain2.gain.setValueAtTime(0.08, audioCtx.currentTime);
           osc2.start();
           osc2.stop(audioCtx.currentTime + 0.3);
@@ -592,7 +600,6 @@
       } catch (e) {}
     }
 
-    // トースト通知を表示する関数
     function showToast(message, iconName = 'info') {
       const toast = document.getElementById('toast');
       const toastMessage = document.getElementById('toast-message');
@@ -611,7 +618,6 @@
       }, 4000);
     }
 
-    // HTMLエスケープユーティリティ
     function escapeHtml(str) {
       if (!str) return '';
       return str
@@ -622,7 +628,6 @@
         .replace(/'/g, '&#039;');
     }
 
-    // 起動処理
     window.onload = function() {
       initCamera();
     }
