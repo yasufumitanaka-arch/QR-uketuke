@@ -11,7 +11,7 @@
   <!-- jsQR (QRコード解析ライブラリ) -->
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
-    /* カメラ映像の鏡像反転用（インカメラ時に自然に見せるため） */
+    /* カメラ映像の鏡像反転用 */
     .mirror {
       transform: scaleX(-1);
     }
@@ -27,7 +27,7 @@
     </div>
     <div class="text-sm bg-blue-700 px-3 py-1 rounded-full flex items-center gap-1">
       <span class="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse"></span>
-      高信頼性データ連携モデル
+      エラー自己診断モデル
     </div>
   </header>
 
@@ -52,15 +52,14 @@
 
       <!-- カメラプレビューコンテナ -->
       <div class="relative aspect-video w-full bg-black rounded-xl overflow-hidden shadow-inner flex items-center justify-center">
-        <!-- ビデオ要素（非表示にしてCanvasに描画） -->
+        <!-- ビデオ要素 -->
         <video id="video" class="hidden" playsinline></video>
         <!-- 描画用Canvas -->
         <canvas id="canvas" class="w-full h-full object-cover"></canvas>
         
-        <!-- スキャン枠ガイド overlay -->
+        <!-- スキャン枠ガイド -->
         <div class="absolute inset-0 border-[4px] border-transparent flex items-center justify-center pointer-events-none">
           <div class="w-48 h-48 md:w-56 md:h-56 border-4 border-blue-500 rounded-2xl relative animate-pulse">
-            <!-- 四隅の角強調 -->
             <div class="absolute -top-2 -left-2 w-6 h-6 border-t-4 border-l-4 border-blue-400 rounded-tl-md"></div>
             <div class="absolute -top-2 -right-2 w-6 h-6 border-t-4 border-r-4 border-blue-400 rounded-tr-md"></div>
             <div class="absolute -bottom-2 -left-2 w-6 h-6 border-b-4 border-l-4 border-blue-400 rounded-bl-md"></div>
@@ -85,18 +84,18 @@
 
       <!-- 設定エリア（GAS URLの設定など） -->
       <div class="mt-4 pt-4 border-t border-slate-100">
-        <details class="group">
+        <details class="group" open>
           <summary class="text-xs text-slate-500 cursor-pointer hover:text-slate-700 flex items-center gap-1 select-none">
             <i data-lucide="settings" class="w-3.5 h-3.5 transition-transform group-open:rotate-45"></i>
             システム管理者向け設定（スプレッドシート連携）
           </summary>
           <div class="mt-3 p-3 bg-slate-100 rounded-lg text-xs space-y-2">
             <label class="block font-semibold text-slate-600">Google Apps Script (GAS) Webアプリ URL:</label>
-            <input type="text" id="gas-url" class="w-full p-2 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none" placeholder="https://script.google.com/macros/s/.../exec">
-            <p class="text-[10px] text-slate-400">※URLを空欄にすると、テスト送信モード（スプレッドシートには書き込まれません）になります。</p>
+            <input type="text" id="gas-url" class="w-full p-2 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none text-slate-700 font-mono" placeholder="https://script.google.com/macros/s/.../exec">
+            <p class="text-[10px] text-slate-400">※URL末尾が /exec で終わる「ウェブアプリURL」を入力してください。</p>
             
             <!-- テスト送信ボタン -->
-            <button id="btn-test-connection" class="mt-2 w-full py-1.5 px-3 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-semibold text-xs rounded border border-slate-300 flex items-center justify-center gap-1.5 transition">
+            <button id="btn-test-connection" class="mt-2 w-full py-1.5 px-3 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-bold text-xs rounded border border-slate-300 flex items-center justify-center gap-1.5 transition">
               <i data-lucide="send" class="w-3 h-3"></i>
               <span>スプレッドシートへの疎通テスト</span>
             </button>
@@ -193,6 +192,29 @@
     </div>
   </main>
 
+  <!-- エラー詳細表示ダイアログ（自己診断画面） -->
+  <div id="error-diagnosis-box" class="max-w-5xl w-full mx-auto p-4 md:px-6 mb-6 hidden">
+    <div class="bg-red-50 border border-red-200 rounded-2xl p-5 shadow-sm text-red-900">
+      <div class="flex items-center gap-2 font-bold mb-2">
+        <i data-lucide="alert-octagon" class="text-red-500 w-6 h-6 animate-pulse"></i>
+        <span>通信エラー自己診断システム（ブラウザ側で検出）</span>
+      </div>
+      <p class="text-xs text-red-700 mb-3">送信しようとした瞬間に、ブラウザ内でエラーが起きました。Googleのサーバーに通信が届いていません。</p>
+      
+      <div class="bg-red-950 text-red-100 p-3 rounded-lg font-mono text-xs overflow-x-auto select-all mb-4" id="diagnostic-error-msg">
+        エラー内容がここに表示されます
+      </div>
+
+      <div class="text-xs text-slate-600 space-y-2">
+        <p class="font-bold text-slate-800">💡 考えられる原因と対策：</p>
+        <ul class="list-disc list-inside space-y-1">
+          <li><strong>「TypeError: Failed to fetch」と出ている場合：</strong> URLのつづり（特に余分な空白やエディタのURL）が間違っているか、Chromebook・ブラウザの広告ブロック機能などの影響でドメイン外送信が遮断されています。</li>
+          <li><strong>「TypeError: Invalid URL」と出ている場合：</strong> 入力したURLが正しくありません。`https://...` の全文字列が正確に貼り付けられているか、途中で切れていないか確認してください。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
   <!-- トースト通知システム -->
   <div id="toast" class="fixed bottom-6 right-6 bg-slate-800 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none z-50">
     <i id="toast-icon" data-lucide="info" class="w-5 h-5 text-blue-400"></i>
@@ -205,21 +227,17 @@
   </footer>
 
   <script>
-    // Lucideアイコンの初期化
     lucide.createIcons();
 
-    // グローバル状態
     let stream = null;
     let scanning = true;
     let scannedData = null;
     let animationFrameId = null;
     
-    // カメラ設定関連
     let videoDevices = [];
     let currentDeviceIndex = 0;
-    let currentFacingMode = 'environment'; // デフォルトはアウトカメラ（背面）優先
+    let currentFacingMode = 'environment';
 
-    // DOM要素の参照
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -229,24 +247,23 @@
     const cameraDirectionLabel = document.getElementById('camera-direction-label');
     const btnTestConnection = document.getElementById('btn-test-connection');
 
-    // 画面状態のDOM
     const stateIdle = document.getElementById('state-idle');
     const stateConfirm = document.getElementById('state-confirm');
     const stateProcessing = document.getElementById('state-processing');
     const stateSuccess = document.getElementById('state-success');
 
-    // データ表示DOM
     const qrContentRaw = document.getElementById('qr-content-raw');
     const parsedDataContainer = document.getElementById('parsed-data-container');
     const parsedFields = document.getElementById('parsed-fields');
     const successTime = document.getElementById('success-time');
 
-    // ボタンDOM
     const btnCancel = document.getElementById('btn-cancel');
     const btnSubmit = document.getElementById('btn-submit');
     const btnNext = document.getElementById('btn-next');
 
-    // ローカルストレージからGASのURLと前回のカメラ設定を復元
+    const errorDiagnosisBox = document.getElementById('error-diagnosis-box');
+    const diagnosticErrorMsg = document.getElementById('diagnostic-error-msg');
+
     if (localStorage.getItem('gas_reception_url')) {
       gasUrlInput.value = localStorage.getItem('gas_reception_url');
     }
@@ -254,17 +271,25 @@
       currentFacingMode = localStorage.getItem('camera_facing_mode');
     }
 
-    // GAS URLの保存
     gasUrlInput.addEventListener('input', (e) => {
       localStorage.setItem('gas_reception_url', e.target.value.trim());
+      hideDiagnosis();
     });
 
-    // 接続されているカメラデバイスのリストを取得する関数
+    function showDiagnosis(errorText) {
+      errorDiagnosisBox.classList.remove('hidden');
+      diagnosticErrorMsg.textContent = errorText;
+      errorDiagnosisBox.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function hideDiagnosis() {
+      errorDiagnosisBox.classList.add('hidden');
+    }
+
     async function getCameraDevices() {
       try {
-        // デバイス一覧を取得する前に一度カメラ権限を要求
         const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        tempStream.getTracks().forEach(track => track.stop()); // 即座に停止
+        tempStream.getTracks().forEach(track => track.stop());
 
         const devices = await navigator.mediaDevices.enumerateDevices();
         videoDevices = devices.filter(device => device.kind === 'videoinput');
@@ -275,24 +300,20 @@
       }
     }
 
-    // カメラの起動処理
     async function initCamera() {
       try {
         cameraFallback.classList.add('hidden');
         
-        // すでに動作中のストリームがあれば停止
         if (stream) {
           stream.getTracks().forEach(track => track.stop());
         }
 
-        // デバイスリストがまだ取得できていない、または空の場合は取得する
         if (videoDevices.length === 0) {
           await getCameraDevices();
         }
 
         let constraints = {};
 
-        // デバイスリストが存在する場合の条件分岐
         if (videoDevices.length > 0) {
           const selectedDevice = videoDevices[currentDeviceIndex];
           constraints = {
@@ -344,7 +365,6 @@
       }
     }
 
-    // カメラの切り替え
     async function switchCamera() {
       if (videoDevices.length > 1) {
         currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
@@ -360,7 +380,6 @@
 
     btnSwitchCamera.addEventListener('click', switchCamera);
 
-    // カメラ映像の解析ループ
     function tick() {
       if (video.readyState === video.HAVE_ENOUGH_DATA && scanning) {
         canvas.width = video.videoWidth;
@@ -440,22 +459,22 @@
       }
     }
 
-    // フォームデータ形式（URLSearchParams）を作成するヘルパー
-    function createFormData(action, rawData) {
-      const params = new URLSearchParams();
-      params.append('action', action);
-      params.append('rawData', rawData);
-      params.append('timestamp', new Date().toISOString());
-      return params.toString();
+    // 確実なデータ送信のためにFormData物理送信を使用
+    function getFormDataPayload(action, rawData) {
+      const formData = new FormData();
+      formData.append('action', action);
+      formData.append('rawData', rawData);
+      formData.append('timestamp', new Date().toISOString());
+      return formData;
     }
 
-    // 受付確定ボタンの処理
     async function submitReception() {
       const gasUrl = gasUrlInput.value.trim();
 
       if (!scannedData) return;
 
       switchState('processing');
+      hideDiagnosis();
 
       if (!gasUrl) {
         setTimeout(() => {
@@ -465,23 +484,28 @@
         return;
       }
 
-      const bodyData = createFormData('register', scannedData);
-      const maxRetries = 5;
+      // 入力されたURLのフォーマット簡易バリデーション
+      if (!gasUrl.startsWith('http://') && !gasUrl.startsWith('https://')) {
+        switchState('confirm');
+        showToast("無効なURL形式です。https:// から始まっているか確認してください。", "x-circle");
+        showDiagnosis("URLのエラー: URLは「https://」から開始される必要があります。貼り付けミスが無いか確認してください。");
+        return;
+      }
+
+      const bodyData = getFormDataPayload('register', scannedData);
+      const maxRetries = 2; // デバッグを素早くするためリトライ数を調整
       let delay = 1000;
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          // 最も高い確率で成功するURLエンコードフォーム形式で送信
+          // fetchによる送信処理
           await fetch(gasUrl, {
             method: 'POST',
-            mode: 'no-cors', 
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
+            mode: 'no-cors', // CORS対策
             body: bodyData
           });
 
-          // 通信完了（スプレッドシートへの書き込みがキックされた）
+          // 通信完了（スプレッドシートへの書き込み処理へ）
           handleSuccess();
           return;
 
@@ -489,7 +513,8 @@
           console.error(`Attempt ${attempt} failed:`, error);
           if (attempt === maxRetries) {
             switchState('confirm');
-            showToast("送信に失敗しました。GASのデプロイや権限設定を確認してください。", "x-circle");
+            showToast("送信に失敗しました。画面下の診断システムをご確認ください。", "x-circle");
+            showDiagnosis(`JavaScript エラー（送信失敗）: ${error.name}: ${error.message}\n\n詳細: ${error.stack}`);
             return;
           }
           await new Promise(resolve => setTimeout(resolve, delay));
@@ -498,11 +523,19 @@
       }
     }
 
-    // 単体の疎通テストを実行する関数
     async function testConnection() {
       const gasUrl = gasUrlInput.value.trim();
+      hideDiagnosis();
+
       if (!gasUrl) {
         showToast("URLを入力してからテストを実行してください。", "info");
+        return;
+      }
+
+      // 簡易バリデーション
+      if (!gasUrl.startsWith('http://') && !gasUrl.startsWith('https://')) {
+        showToast("無効なURL形式です。", "x-circle");
+        showDiagnosis("URLのエラー: URLは「https://」から開始される必要があります。貼り付けミスが無いか確認してください。");
         return;
       }
 
@@ -510,22 +543,20 @@
       btnTestConnection.classList.add('opacity-50');
       showToast("テストデータを送信中...", "send");
 
-      const bodyData = createFormData('test', 'TEST_CONNECTION_OK');
+      const bodyData = getFormDataPayload('test', 'TEST_CONNECTION_OK');
 
       try {
         await fetch(gasUrl, {
           method: 'POST',
           mode: 'no-cors',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
           body: bodyData
         });
         
         showToast("テスト送信完了！スプレッドシートをご確認ください。", "check-circle-2");
       } catch (error) {
         console.error("疎通テストエラー:", error);
-        showToast("送信失敗。CORSエラーまたはURLが無効です。", "x-circle");
+        showToast("送信時に物理エラーを検出しました。診断欄を確認してください。", "x-circle");
+        showDiagnosis(`JavaScript エラー（疎通テスト失敗）: ${error.name}: ${error.message}\n\n詳細: ${error.stack}`);
       } finally {
         btnTestConnection.disabled = false;
         btnTestConnection.classList.remove('opacity-50');
@@ -545,6 +576,7 @@
 
     btnCancel.addEventListener('click', () => {
       switchState('idle');
+      hideDiagnosis();
     });
 
     btnSubmit.addEventListener('click', () => {
@@ -553,6 +585,7 @@
 
     btnNext.addEventListener('click', () => {
       switchState('idle');
+      hideDiagnosis();
     });
 
     function playBeep() {
