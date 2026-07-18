@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QRコード受付システム</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- jsQR (QRコード解析ライブラリ) -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <style>
+    /* カメラ映像の鏡像反転用（インカメラ時に自然に見せるため） */
+    .mirror {
+      transform: scaleX(-1);
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+  <!-- ヘッダー -->
+  <header class="bg-blue-600 text-white shadow-md py-4 px-6 flex justify-between items-center">
+    <div class="flex items-center gap-3">
+      <i data-lucide="qr-code" class="w-8 h-8"></i>
+      <h1 class="text-xl font-bold tracking-wider">QRコード 受付システム</h1>
+    </div>
+    <div class="text-sm bg-blue-700 px-3 py-1 rounded-full flex items-center gap-1">
+      <span class="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse"></span>
+      高信頼性データ連携モデル
+    </div>
+  </header>
+
+  <!-- メインコンテンツ -->
+  <main class="flex-1 max-w-5xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+    
+    <!-- 左側：カメラ・スキャンエリア -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col justify-between">
+      <div>
+        <div class="flex justify-between items-start mb-2">
+          <h2 class="text-lg font-bold text-slate-700 flex items-center gap-2">
+            <i data-lucide="camera" class="text-blue-500"></i> QRコードをかざしてください
+          </h2>
+          <!-- カメラ切り替えボタン -->
+          <button id="btn-switch-camera" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg border border-slate-300 flex items-center gap-1.5 transition">
+            <i data-lucide="switch-camera" class="w-3.5 h-3.5"></i>
+            <span>カメラを切り替え</span>
+          </button>
+        </div>
+        <p class="text-xs text-slate-500 mb-4">枠内にQRコードがきれいに収まるように近づけてください。</p>
+      </div>
+
+      <!-- カメラプレビューコンテナ -->
+      <div class="relative aspect-video w-full bg-black rounded-xl overflow-hidden shadow-inner flex items-center justify-center">
+        <!-- ビデオ要素（非表示にしてCanvasに描画） -->
+        <video id="video" class="hidden" playsinline></video>
+        <!-- 描画用Canvas -->
+        <canvas id="canvas" class="w-full h-full object-cover"></canvas>
+        
+        <!-- スキャン枠ガイド overlay -->
+        <div class="absolute inset-0 border-[4px] border-transparent flex items-center justify-center pointer-events-none">
+          <div class="w-48 h-48 md:w-56 md:h-56 border-4 border-blue-500 rounded-2xl relative animate-pulse">
+            <!-- 四隅の角強調 -->
+            <div class="absolute -top-2 -left-2 w-6 h-6 border-t-4 border-l-4 border-blue-400 rounded-tl-md"></div>
+            <div class="absolute -top-2 -right-2 w-6 h-6 border-t-4 border-r-4 border-blue-400 rounded-tr-md"></div>
+            <div class="absolute -bottom-2 -left-2 w-6 h-6 border-b-4 border-l-4 border-blue-400 rounded-bl-md"></div>
+            <div class="absolute -bottom-2 -right-2 w-6 h-6 border-b-4 border-r-4 border-blue-400 rounded-br-md"></div>
+          </div>
+        </div>
+
+        <!-- アクティブなカメラの向きインジケーター -->
+        <div class="absolute top-3 left-3 bg-black/60 text-white text-[10px] px-2 py-1 rounded-md flex items-center gap-1">
+          <span class="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+          <span id="camera-direction-label">カメラ起動中</span>
+        </div>
+
+        <!-- カメラ未許可/エラー時のメッセージ -->
+        <div id="camera-fallback" class="absolute inset-0 bg-slate-800 flex flex-col items-center justify-center text-white p-4 text-center hidden">
+          <i data-lucide="camera-off" class="w-12 h-12 text-slate-400 mb-2"></i>
+          <p class="font-semibold">カメラが起動できません</p>
+          <p class="text-xs text-slate-400 mt-1 max-w-xs">ブラウザのカメラアクセス権限を許可し、ページを再読み込みしてください。</p>
+          <button onclick="initCamera()" class="mt-4 px-4 py-2 bg-blue-50 hover:bg-blue-600 rounded-lg text-xs transition font-semibold">カメラを再試行</button>
+        </div>
+      </div>
+
+      <!-- 設定エリア（GAS URLの設定など） -->
+      <div class="mt-4 pt-4 border-t border-slate-100">
+        <details class="group">
+          <summary class="text-xs text-slate-500 cursor-pointer hover:text-slate-700 flex items-center gap-1 select-none">
+            <i data-lucide="settings" class="w-3.5 h-3.5 transition-transform group-open:rotate-45"></i>
+            システム管理者向け設定（スプレッドシート連携）
+          </summary>
+          <div class="mt-3 p-3 bg-slate-100 rounded-lg text-xs space-y-2">
+            <label class="block font-semibold text-slate-600">Google Apps Script (GAS) Webアプリ URL:</label>
+            <input type="text" id="gas-url" class="w-full p-2 border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 focus:outline-none" placeholder="https://script.google.com/macros/s/.../exec">
+            <p class="text-[10px] text-slate-400">※URLを空欄にすると、テスト送信モード（スプレッドシートには書き込まれません）になります。</p>
+            
+            <!-- テスト送信ボタン -->
+            <button id="btn-test-connection" class="mt-2 w-full py-1.5 px-3 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-semibold text-xs rounded border border-slate-300 flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="send" class="w-3 h-3"></i>
+              <span>スプレッドシートへの疎通テスト</span>
+            </button>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <!-- 右側：確認・受付ステータス -->
+    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between min-h-[400px]">
+      
+      <!-- 未読取状態 -->
+      <div id="state-idle" class="flex-1 flex flex-col items-center justify-center text-center py-8">
+        <div class="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center text-blue-500 mb-4 animate-bounce">
+          <i data-lucide="scan" class="w-10 h-10"></i>
+        </div>
+        <h3 class="text-xl font-bold text-slate-700">QRコードをスキャンしてください</h3>
+        <p class="text-slate-500 text-sm mt-2 max-w-xs">来場者名簿のQRコードをカメラにかざすと、自動的に内容が読み取られます。</p>
+      </div>
+
+      <!-- 読取成功・確認状態 -->
+      <div id="state-confirm" class="flex-1 flex flex-col justify-between hidden">
+        <div>
+          <div class="flex items-center gap-2 text-green-600 font-bold text-lg mb-4">
+            <i data-lucide="check-circle-2"></i> 読み取り完了
+          </div>
+          
+          <h3 class="text-xs font-semibold text-slate-400 tracking-wider uppercase mb-1">読み取ったデータ</h3>
+          
+          <!-- パースされたデータ表示エリア -->
+          <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3 mb-6">
+            <div>
+              <span class="text-xs text-slate-400 block">メイン内容</span>
+              <p id="qr-content-raw" class="font-bold text-lg text-slate-800 break-all"></p>
+            </div>
+            
+            <!-- スプレッドシート送信用データの簡易プレビュー -->
+            <div id="parsed-data-container" class="border-t border-slate-200 pt-3 hidden">
+              <span class="text-xs text-slate-400 block mb-1">検出された項目:</span>
+              <div id="parsed-fields" class="grid grid-cols-2 gap-2 text-sm">
+                <!-- JSで動的に追加されます -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          <div class="p-3 bg-blue-50 text-blue-800 rounded-lg text-xs flex items-start gap-2">
+            <i data-lucide="info" class="w-4 h-4 mt-0.5 shrink-0"></i>
+            <p>画面に表示された内容が正しいことを確認して、下の「受付を完了する」ボタンを押してください。</p>
+          </div>
+          
+          <div class="flex gap-3">
+            <button id="btn-cancel" class="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-bold rounded-xl transition flex items-center justify-center gap-2">
+              <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+              やり直す
+            </button>
+            <button id="btn-submit" class="flex-[2] py-3 px-4 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold rounded-xl shadow-lg shadow-blue-200 transition flex items-center justify-center gap-2">
+              <i data-lucide="user-check" class="w-5 h-5"></i>
+              受付を完了する
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 送信中/処理中状態 -->
+      <div id="state-processing" class="flex-1 flex flex-col items-center justify-center text-center py-8 hidden">
+        <div class="relative w-16 h-16 mb-4">
+          <div class="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
+          <div class="absolute inset-0 border-4 border-t-blue-600 rounded-full animate-spin"></div>
+        </div>
+        <h3 class="text-lg font-bold text-slate-700">受付データを送信中...</h3>
+        <p class="text-slate-400 text-sm mt-1">スプレッドシートに書き込みをしています。少々お待ちください。</p>
+      </div>
+
+      <!-- 送信完了状態（サクセス） -->
+      <div id="state-success" class="flex-1 flex flex-col items-center justify-center text-center py-8 hidden">
+        <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mb-4 animate-scale-up">
+          <i data-lucide="sparkles" class="w-10 h-10"></i>
+        </div>
+        <h3 class="text-2xl font-bold text-green-700">ご来場ありがとうございます！</h3>
+        <p class="text-slate-600 text-sm mt-2 font-medium">受付が完了しました。そのままお入りください。</p>
+        
+        <div class="mt-6 p-4 bg-slate-50 rounded-lg max-w-xs text-xs text-slate-500">
+          <span class="block font-semibold">受付番号（目安）：</span>
+          <span id="success-time" class="text-slate-700 text-sm font-bold block mt-1">--:--:-- 受付済</span>
+        </div>
+
+        <button id="btn-next" class="mt-8 px-6 py-3 bg-slate-800 hover:bg-slate-900 active:bg-black text-white font-bold rounded-xl transition flex items-center gap-2">
+          次の方の受付へ <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- トースト通知システム -->
+  <div id="toast" class="fixed bottom-6 right-6 bg-slate-800 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none z-50">
+    <i id="toast-icon" data-lucide="info" class="w-5 h-5 text-blue-400"></i>
+    <span id="toast-message" class="text-sm font-medium">メッセージ</span>
+  </div>
+
+  <!-- フッター -->
+  <footer class="bg-slate-100 border-t border-slate-200 py-3 text-center text-xs text-slate-400">
+    &copy; 2026 QR-Reception System for Chromebooks. Powered by Google Workspace.
+  </footer>
+
+  <script>
+    // Lucideアイコンの初期化
+    lucide.createIcons();
+
+    // グローバル状態
+    let stream = null;
+    let scanning = true;
+    let scannedData = null;
+    let animationFrameId = null;
+    
+    // カメラ設定関連
+    let videoDevices = [];
+    let currentDeviceIndex = 0;
+    let currentFacingMode = 'environment'; // デフォルトはアウトカメラ（背面）優先
+
+    // DOM要素の参照
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const cameraFallback = document.getElementById('camera-fallback');
+    const gasUrlInput = document.getElementById('gas-url');
+    const btnSwitchCamera = document.getElementById('btn-switch-camera');
+    const cameraDirectionLabel = document.getElementById('camera-direction-label');
+    const btnTestConnection = document.getElementById('btn-test-connection');
+
+    // 画面状態のDOM
+    const stateIdle = document.getElementById('state-idle');
+    const stateConfirm = document.getElementById('state-confirm');
+    const stateProcessing = document.getElementById('state-processing');
+    const stateSuccess = document.getElementById('state-success');
+
+    // データ表示DOM
+    const qrContentRaw = document.getElementById('qr-content-raw');
+    const parsedDataContainer = document.getElementById('parsed-data-container');
+    const parsedFields = document.getElementById('parsed-fields');
+    const successTime = document.getElementById('success-time');
+
+    // ボタンDOM
+    const btnCancel = document.getElementById('btn-cancel');
+    const btnSubmit = document.getElementById('btn-submit');
+    const btnNext = document.getElementById('btn-next');
+
+    // ローカルストレージからGASのURLと前回のカメラ設定を復元
+    if (localStorage.getItem('gas_reception_url')) {
+      gasUrlInput.value = localStorage.getItem('gas_reception_url');
+    }
+    if (localStorage.getItem('camera_facing_mode')) {
+      currentFacingMode = localStorage.getItem('camera_facing_mode');
+    }
+
+    // GAS URLの保存
+    gasUrlInput.addEventListener('input', (e) => {
+      localStorage.setItem('gas_reception_url', e.target.value.trim());
+    });
+
+    // 接続されているカメラデバイスのリストを取得する関数
+    async function getCameraDevices() {
+      try {
+        // デバイス一覧を取得する前に一度カメラ権限を要求
+        const tempStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        tempStream.getTracks().forEach(track => track.stop()); // 即座に停止
+
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        videoDevices = devices.filter(device => device.kind === 'videoinput');
+        
+        console.log("利用可能なビデオデバイス:", videoDevices);
+      } catch (err) {
+        console.error("カメラデバイス一覧の取得に失敗しました:", err);
+      }
+    }
+
+    // カメラの起動処理
+    async function initCamera() {
+      try {
+        cameraFallback.classList.add('hidden');
+        
+        // すでに動作中のストリームがあれば停止
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+        }
+
+        // デバイスリストがまだ取得できていない、または空の場合は取得する
+        if (videoDevices.length === 0) {
+          await getCameraDevices();
+        }
+
+        let constraints = {};
+
+        // デバイスリストが存在する場合の条件分岐
+        if (videoDevices.length > 0) {
+          const selectedDevice = videoDevices[currentDeviceIndex];
+          constraints = {
+            video: {
+              deviceId: { exact: selectedDevice.deviceId },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            }
+          };
+          
+          const label = selectedDevice.label.toLowerCase();
+          if (label.includes('front') || label.includes('user') || label.includes('内側') || label.includes('インカメラ')) {
+            canvas.classList.add('mirror');
+            cameraDirectionLabel.textContent = `インカメラ: ${selectedDevice.label.substring(0, 15)}...`;
+          } else {
+            canvas.classList.remove('mirror');
+            cameraDirectionLabel.textContent = `アウトカメラ: ${selectedDevice.label.substring(0, 15)}...`;
+          }
+        } else {
+          constraints = {
+            video: { 
+              facingMode: currentFacingMode, 
+              width: { ideal: 1280 }, 
+              height: { ideal: 720 } 
+            }
+          };
+
+          if (currentFacingMode === 'user') {
+            canvas.classList.add('mirror');
+            cameraDirectionLabel.textContent = "インカメラ起動中";
+          } else {
+            canvas.classList.remove('mirror');
+            cameraDirectionLabel.textContent = "アウトカメラ起動中";
+          }
+        }
+
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = stream;
+        video.setAttribute('playsinline', true);
+        video.play();
+        
+        if (!animationFrameId) {
+          requestAnimationFrame(tick);
+        }
+      } catch (err) {
+        console.error("Camera startup error: ", err);
+        cameraFallback.classList.remove('hidden');
+        showToast("カメラの起動に失敗しました。アクセス権限を確認してください。", "camera-off");
+      }
+    }
+
+    // カメラの切り替え
+    async function switchCamera() {
+      if (videoDevices.length > 1) {
+        currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
+        showToast("カメラを切り替えます...", "refresh-cw");
+        await initCamera();
+      } else {
+        currentFacingMode = (currentFacingMode === 'environment') ? 'user' : 'environment';
+        localStorage.setItem('camera_facing_mode', currentFacingMode);
+        showToast("カメラの向きを切り替えます...", "refresh-cw");
+        await initCamera();
+      }
+    }
+
+    btnSwitchCamera.addEventListener('click', switchCamera);
+
+    // カメラ映像の解析ループ
+    function tick() {
+      if (video.readyState === video.HAVE_ENOUGH_DATA && scanning) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "dontInvert",
+        });
+
+        if (code) {
+          handleQRCodeDetected(code.data);
+        }
+      }
+      animationFrameId = requestAnimationFrame(tick);
+    }
+
+    function handleQRCodeDetected(data) {
+      scanning = false; 
+      scannedData = data;
+      playBeep();
+      qrContentRaw.textContent = data;
+      parseAndDisplayFields(data);
+      switchState('confirm');
+    }
+
+    function parseAndDisplayFields(data) {
+      parsedFields.innerHTML = '';
+      let fields = [];
+
+      try {
+        if (data.trim().startsWith('{') && data.trim().endsWith('}')) {
+          const obj = JSON.parse(data);
+          fields = Object.entries(obj).map(([key, val]) => ({ label: key, value: val }));
+        } 
+        else if (data.includes(',')) {
+          fields = data.split(',').map((val, idx) => ({ label: `項目 ${idx + 1}`, value: val.trim() }));
+        }
+        else if (data.includes('\n')) {
+          fields = data.split('\n').map((val, idx) => ({ label: `行 ${idx + 1}`, value: val.trim() }));
+        }
+      } catch (e) {}
+
+      if (fields.length > 0) {
+        parsedDataContainer.classList.remove('hidden');
+        fields.forEach(f => {
+          const div = document.createElement('div');
+          div.className = 'bg-white p-2 rounded border border-slate-100';
+          div.innerHTML = `
+            <span class="text-[10px] text-slate-400 block">${escapeHtml(f.label)}</span>
+            <span class="font-semibold text-slate-700">${escapeHtml(String(f.value))}</span>
+          `;
+          parsedFields.appendChild(div);
+        });
+      } else {
+        parsedDataContainer.classList.add('hidden');
+      }
+    }
+
+    function switchState(state) {
+      stateIdle.classList.add('hidden');
+      stateConfirm.classList.add('hidden');
+      stateProcessing.classList.add('hidden');
+      stateSuccess.classList.add('hidden');
+
+      if (state === 'idle') {
+        stateIdle.classList.remove('hidden');
+        scanning = true;
+      } else if (state === 'confirm') {
+        stateConfirm.classList.remove('hidden');
+      } else if (state === 'processing') {
+        stateProcessing.classList.remove('hidden');
+      } else if (state === 'success') {
+        stateSuccess.classList.remove('hidden');
+      }
+    }
+
+    // フォームデータ形式（URLSearchParams）を作成するヘルパー
+    function createFormData(action, rawData) {
+      const params = new URLSearchParams();
+      params.append('action', action);
+      params.append('rawData', rawData);
+      params.append('timestamp', new Date().toISOString());
+      return params.toString();
+    }
+
+    // 受付確定ボタンの処理
+    async function submitReception() {
+      const gasUrl = gasUrlInput.value.trim();
+
+      if (!scannedData) return;
+
+      switchState('processing');
+
+      if (!gasUrl) {
+        setTimeout(() => {
+          showToast("【テストモード】スプレッドシートURL未設定のためデモ完了します", "info");
+          handleSuccess();
+        }, 1200);
+        return;
+      }
+
+      const bodyData = createFormData('register', scannedData);
+      const maxRetries = 5;
+      let delay = 1000;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          // 最も高い確率で成功するURLエンコードフォーム形式で送信
+          await fetch(gasUrl, {
+            method: 'POST',
+            mode: 'no-cors', 
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: bodyData
+          });
+
+          // 通信完了（スプレッドシートへの書き込みがキックされた）
+          handleSuccess();
+          return;
+
+        } catch (error) {
+          console.error(`Attempt ${attempt} failed:`, error);
+          if (attempt === maxRetries) {
+            switchState('confirm');
+            showToast("送信に失敗しました。GASのデプロイや権限設定を確認してください。", "x-circle");
+            return;
+          }
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2;
+        }
+      }
+    }
+
+    // 単体の疎通テストを実行する関数
+    async function testConnection() {
+      const gasUrl = gasUrlInput.value.trim();
+      if (!gasUrl) {
+        showToast("URLを入力してからテストを実行してください。", "info");
+        return;
+      }
+
+      btnTestConnection.disabled = true;
+      btnTestConnection.classList.add('opacity-50');
+      showToast("テストデータを送信中...", "send");
+
+      const bodyData = createFormData('test', 'TEST_CONNECTION_OK');
+
+      try {
+        await fetch(gasUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: bodyData
+        });
+        
+        showToast("テスト送信完了！スプレッドシートをご確認ください。", "check-circle-2");
+      } catch (error) {
+        console.error("疎通テストエラー:", error);
+        showToast("送信失敗。CORSエラーまたはURLが無効です。", "x-circle");
+      } finally {
+        btnTestConnection.disabled = false;
+        btnTestConnection.classList.remove('opacity-50');
+      }
+    }
+
+    btnTestConnection.addEventListener('click', testConnection);
+
+    function handleSuccess() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      successTime.textContent = `${timeStr} 受付完了`;
+      
+      switchState('success');
+      playSuccessChime();
+    }
+
+    btnCancel.addEventListener('click', () => {
+      switchState('idle');
+    });
+
+    btnSubmit.addEventListener('click', () => {
+      submitReception();
+    });
+
+    btnNext.addEventListener('click', () => {
+      switchState('idle');
+    });
+
+    function playBeep() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.type = 'sine';
+        oscillator.frequency.value = 1000; 
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.08); 
+      } catch (e) {}
+    }
+
+    function playSuccessChime() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
+        osc1.frequency.value = 523.25; 
+        gain1.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        osc1.start();
+        osc1.stop(audioCtx.currentTime + 0.15);
+
+        setTimeout(() => {
+          const osc2 = audioCtx.createOscillator();
+          const gain2 = audioCtx.createGain();
+          osc2.connect(gain2);
+          gain2.connect(audioCtx.destination);
+          osc2.frequency.value = 659.25; 
+          gain2.gain.setValueAtTime(0.08, audioCtx.currentTime);
+          osc2.start();
+          osc2.stop(audioCtx.currentTime + 0.3);
+        }, 120);
+
+      } catch (e) {}
+    }
+
+    function showToast(message, iconName = 'info') {
+      const toast = document.getElementById('toast');
+      const toastMessage = document.getElementById('toast-message');
+      const toastIcon = document.getElementById('toast-icon');
+
+      toastMessage.textContent = message;
+      toastIcon.setAttribute('data-lucide', iconName);
+      lucide.createIcons(); 
+
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 4000);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    window.onload = function() {
+      initCamera();
+    }
+  </script>
+</body>
+</html>
