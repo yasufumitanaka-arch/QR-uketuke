@@ -49,7 +49,7 @@
     background:rgba(255,255,255,.2); border:none; color:#fff;
     border-radius:4px; padding:2px 8px; cursor:pointer; font-size:12px;
   }
-
+ 
   .topbar{ text-align:center; margin-bottom:2.6vh; flex-shrink:0; }
   .eyebrow{
     font-family:'IBM Plex Mono',monospace;
@@ -61,7 +61,7 @@
     font-size:clamp(20px,3vw,30px);
     margin:0; color:var(--text-light);
   }
-
+ 
   /* ---------- ticket-shell : 2画面を横に並べたチケット ---------- */
   .ticket-shell{
     flex:1; width:100%; max-width:960px; min-height:0;
@@ -70,14 +70,15 @@
     border-radius:22px; overflow:hidden;
     box-shadow:0 24px 60px rgba(0,0,0,.4);
   }
-
+ 
   /* --- 左: カメラ読み込み画面 --- */
   .camera-side{
     flex:0 0 42%;
     background:var(--ink-2);
     padding:28px 24px;
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
     position:relative;
+    overflow-y:auto;
   }
   .camera-side::before, .camera-side::after{
     content:''; position:absolute; right:-16px; width:32px; height:32px; border-radius:50%;
@@ -111,7 +112,7 @@
     animation:sweep 2.4s ease-in-out infinite alternate;
   }
   @keyframes sweep{ from{ top:6%; } to{ top:94%; } }
-
+ 
   .switch-cam-btn{
     position:absolute; bottom:10px; right:10px; z-index:3;
     width:40px; height:40px; border-radius:50%; border:none; cursor:pointer;
@@ -122,9 +123,42 @@
   .switch-cam-btn:hover{ background:rgba(22,35,42,.9); }
   .switch-cam-btn:active{ transform:scale(.94); }
   .switch-cam-btn[hidden]{ display:none; }
-
+ 
   .hint{ margin:0; font-size:13px; color:var(--muted); text-align:center; letter-spacing:.02em; }
-
+ 
+  .status-row{ display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); }
+  .status-dot{ width:8px; height:8px; border-radius:50%; background:var(--muted); flex-shrink:0; transition:background .2s ease; }
+  .status-dot.scanning{ background:var(--accent); animation:pulse 1.4s ease-in-out infinite; }
+  .status-dot.detected{ background:var(--success); animation:none; }
+  .status-dot.error{ background:var(--danger); animation:none; }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+ 
+  .frame.flash-detect{ animation:flashDetect .5s ease; }
+  @keyframes flashDetect{ 0%{ box-shadow:0 0 0 0 rgba(79,165,121,.85); } 100%{ box-shadow:0 0 0 16px rgba(79,165,121,0); } }
+ 
+  .debug-toggle{
+    background:none; border:none; color:var(--muted); font-size:11px; text-decoration:underline;
+    cursor:pointer; font-family:'IBM Plex Mono',monospace; padding:2px; width:100%; text-align:center;
+  }
+  .debug-panel{
+    display:none; width:100%; background:rgba(0,0,0,.22); border-radius:10px; padding:10px 12px;
+    font-family:'IBM Plex Mono',monospace; font-size:11px; line-height:1.9; color:var(--muted);
+  }
+  .debug-panel.open{ display:block; }
+  .debug-panel div span{ color:var(--text-light); }
+ 
+  .manual-test{ display:none; width:100%; flex-direction:column; gap:6px; margin-top:8px; }
+  .manual-test.open{ display:flex; }
+  .manual-test textarea{
+    width:100%; resize:none; height:52px; border-radius:8px; border:1px solid rgba(251,247,238,.2);
+    background:rgba(0,0,0,.2); color:var(--text-light); font-family:'IBM Plex Mono',monospace;
+    font-size:11px; padding:8px;
+  }
+  .manual-test button{
+    align-self:flex-end; background:var(--accent); color:#231705; border:none; border-radius:6px;
+    padding:6px 14px; font-size:11px; cursor:pointer; font-weight:600;
+  }
+ 
   .cam-error{
     display:none; width:100%; max-width:300px; aspect-ratio:1/1; border-radius:16px;
     background:rgba(217,105,79,.12); border:1px solid rgba(217,105,79,.4);
@@ -135,7 +169,7 @@
   body[data-cam="error"] .scanline{ display:none; }
   body[data-cam="error"] .cam-error{ display:flex; }
   body[data-cam="error"] .switch-cam-btn{ display:none; }
-
+ 
   /* --- 右: データ確認・受付画面 --- */
   .data-side{
     flex:1; min-width:0;
@@ -149,12 +183,12 @@
   body[data-state="success"] .state-success{ display:flex; }
   body[data-state="senderror"] .state-senderror{ display:flex; }
   @keyframes fadeUp{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
-
+ 
   /* idle */
   .state-idle{ align-items:center; justify-content:center; text-align:center; gap:14px; color:var(--muted-dark); }
   .idle-icon{ opacity:.55; }
   .state-idle p{ margin:0; font-size:14px; max-width:260px; line-height:1.7; }
-
+ 
   /* confirm */
   .ticket-label{
     font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.28em;
@@ -170,7 +204,7 @@
   .row-label{ color:var(--muted-dark); flex-shrink:0; }
   .row-value{ text-align:right; font-weight:500; word-break:break-word; }
   .row-value.mono{ font-family:'IBM Plex Mono',monospace; letter-spacing:.02em; }
-
+ 
   .action-bar{ margin-top:auto; padding-top:18px; display:flex; flex-direction:column; gap:10px; }
   .btn{
     appearance:none; border:none; cursor:pointer; border-radius:12px;
@@ -184,14 +218,14 @@
   .btn-primary:disabled{ opacity:.7; cursor:default; }
   .btn-ghost{ background:transparent; color:var(--muted-dark); font-weight:500; font-size:13px; padding:4px; }
   .btn-ghost:hover{ color:var(--text-dark); }
-
+ 
   .spinner{
     width:20px; height:20px; border-radius:50%;
     border:3px solid rgba(35,23,5,.25); border-top-color:#231705;
     animation:spin .8s linear infinite;
   }
   @keyframes spin{ to{ transform:rotate(360deg); } }
-
+ 
   /* success */
   .state-success{ align-items:center; justify-content:center; text-align:center; gap:12px; }
   .success-check{
@@ -204,19 +238,19 @@
   .success-name{ font-size:14px; color:var(--muted-dark); margin:0; }
   .success-number{ font-family:'IBM Plex Mono',monospace; font-weight:600; font-size:22px; color:var(--accent-2); margin:2px 0 6px; }
   .success-sub{ font-size:12px; color:var(--muted-dark); margin:0; font-family:'IBM Plex Mono',monospace; }
-
+ 
   /* send error */
   .state-senderror{ align-items:center; justify-content:center; text-align:center; gap:14px; }
   .state-senderror p{ color:var(--danger); font-size:14px; max-width:260px; line-height:1.6; margin:0; }
   .state-senderror .btn-primary{ background:var(--danger); color:#2A0E08; max-width:220px; }
-
+ 
   @media (max-width: 720px){
     .ticket-shell{ flex-direction:column; }
     .camera-side{ flex:0 0 auto; }
     .camera-side::before, .camera-side::after{ display:none; }
     .divider{ display:none; }
   }
-
+ 
   @media (prefers-reduced-motion: reduce){
     .scanline{ animation:none; top:50%; }
     .state{ animation:none; }
@@ -228,13 +262,13 @@
   ⚠️ Apps ScriptのURLが未設定です。index.html内のCONFIG.GAS_URLを設定してください。
   <button onclick="document.getElementById('configWarning').style.display='none'">閉じる</button>
 </div>
-
+ 
 <div id="app">
   <div class="topbar">
     <p class="eyebrow">Welcome Desk</p>
     <h1 class="event-name" id="eventName"></h1>
   </div>
-
+ 
   <div class="ticket-shell">
     <!-- 左: カメラ読み込み画面 -->
     <section class="camera-side">
@@ -248,6 +282,24 @@
       </div>
       <div class="cam-error" id="camErrorBox"></div>
       <p class="hint" id="camHint">QRコードを枠内にかざしてください</p>
+ 
+      <div class="status-row">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">初期化中...</span>
+      </div>
+      <button class="debug-toggle" id="debugToggle">詳細情報を表示 ▾</button>
+      <div class="debug-panel" id="debugPanel">
+        <div>解像度: <span id="dbgResolution">-</span></div>
+        <div>デバイス: <span id="dbgDevice">-</span></div>
+        <div>処理速度: <span id="dbgFps">-</span> fps</div>
+        <div>最終検出: <span id="dbgLast">-</span></div>
+        <button class="debug-toggle" id="manualTestToggle" style="margin-top:6px;">QRコードなしでテスト入力 ▸</button>
+        <div class="manual-test" id="manualTest">
+          <textarea id="manualInput" placeholder='{"name":"テスト太郎","furigana":"テストタロウ","email":"test@example.com","subject":"数学","timeslot":"10:00〜11:30","venue":"3階 第2教室"}'></textarea>
+          <button id="manualSubmit">この内容でテスト</button>
+        </div>
+      </div>
+ 
       <button class="switch-cam-btn" id="switchCamBtn" hidden title="インカメラ/アウトカメラ切替">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
           <path d="M17 2l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -257,7 +309,7 @@
         </svg>
       </button>
     </section>
-
+ 
     <!-- 右: データ確認・受付画面 -->
     <section class="data-side">
       <!-- 待機中 -->
@@ -270,7 +322,7 @@
         </svg>
         <p>QRコードをカメラにかざすと、<br>ここに来場者情報が表示されます</p>
       </div>
-
+ 
       <!-- 確認 / 送信中 -->
       <div class="state state-confirm">
         <p class="ticket-label">Visitor</p>
@@ -282,7 +334,7 @@
           <button class="btn btn-ghost" id="rescanBtn">スキャンし直す</button>
         </div>
       </div>
-
+ 
       <!-- 完了 -->
       <div class="state state-success">
         <div class="success-check">
@@ -294,7 +346,7 @@
         <p class="success-sub" id="autoResetLabel"></p>
         <button class="btn btn-ghost" id="nextBtn">今すぐ次の方へ</button>
       </div>
-
+ 
       <!-- 送信エラー -->
       <div class="state state-senderror">
         <p>送信に失敗しました。ネットワークをご確認のうえ、もう一度お試しください。</p>
@@ -304,9 +356,9 @@
     </section>
   </div>
 </div>
-
+ 
 <canvas id="canvas" style="display:none;"></canvas>
-
+ 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jsqr/1.4.0/jsQR.js"></script>
 <script>
 /* ============================================================
@@ -314,12 +366,12 @@
    ============================================================ */
 const CONFIG = {
   // Apps Scriptをウェブアプリとしてデプロイして発行されたURL（Code.gs参照）
-  GAS_URL: 'https://script.google.com/a/macros/gse.okayama-c.ed.jp/s/AKfycbyx9b34-nParm_61sfz-GxG-eyjMxRFcpRJrYbif10xc-5op27XXWAv2RNkYyaDijKhZw/exec',
-  EVENT_NAME: 'オープンスクール受付', // 画面上部に表示するイベント名・会場名
+  GAS_URL: 'https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX/exec',
+  EVENT_NAME: '受付', // 画面上部に表示するイベント名・会場名
   RESCAN_COOLDOWN_MS: 4000,               // 同じQRコードを連続で読み取らないための間隔
   AUTO_RESET_MS: 4000,                    // 受付完了後、自動で待機画面に戻るまでの時間
 };
-
+ 
 // QRコード(JSON)のキーと、画面・シートに表示するラベルの対応
 // Code.gs の FIELDS と必ず同じ内容にしてください
 const FIELDS = [
@@ -331,7 +383,7 @@ const FIELDS = [
   { key: 'venue',    label: '受講会場' },
 ];
 /* ============================================================ */
-
+ 
 const video = document.getElementById('video');
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -344,7 +396,20 @@ const autoResetLabel = document.getElementById('autoResetLabel');
 const camErrorBox = document.getElementById('camErrorBox');
 const switchCamBtn = document.getElementById('switchCamBtn');
 const camHint = document.getElementById('camHint');
-
+const statusDot = document.getElementById('statusDot');
+const statusText = document.getElementById('statusText');
+const debugToggle = document.getElementById('debugToggle');
+const debugPanel = document.getElementById('debugPanel');
+const dbgResolution = document.getElementById('dbgResolution');
+const dbgDevice = document.getElementById('dbgDevice');
+const dbgFps = document.getElementById('dbgFps');
+const dbgLast = document.getElementById('dbgLast');
+const manualTestToggle = document.getElementById('manualTestToggle');
+const manualTest = document.getElementById('manualTest');
+const manualInput = document.getElementById('manualInput');
+const manualSubmit = document.getElementById('manualSubmit');
+const frameEl = document.querySelector('.frame');
+ 
 let state = 'idle';
 let lastCode = null, lastScanTime = 0;
 let currentData = null;
@@ -352,44 +417,74 @@ let resetTimer = null, countdownTimer = null;
 let currentStream = null;
 let videoDevices = [];
 let currentDeviceIndex = 0;
-
+let frameCounter = 0;
+let stallCheckTimer = null;
+ 
+function setStatus(mode, text) {
+  statusDot.className = 'status-dot' + (mode ? ' ' + mode : '');
+  statusText.textContent = text;
+}
+ 
+// 1秒ごとに解析フレーム数(fps相当)と解像度を更新
+setInterval(() => {
+  dbgFps.textContent = frameCounter;
+  frameCounter = 0;
+  if (video.videoWidth) dbgResolution.textContent = video.videoWidth + '×' + video.videoHeight;
+}, 1000);
+ 
 document.getElementById('eventName').textContent = CONFIG.EVENT_NAME;
 if (CONFIG.GAS_URL.includes('XXXXXXXX')) {
   document.getElementById('configWarning').style.display = 'flex';
 }
-
+ 
 function setState(next) {
   state = next;
   document.body.dataset.state = next;
 }
-
+ 
 /* ---------- カメラ制御 ---------- */
 async function startCamera(deviceId) {
   stopCamera();
+  clearTimeout(stallCheckTimer);
+  setStatus('', 'カメラを起動しています...');
   try {
     const constraints = deviceId
-      ? { video: { deviceId: { exact: deviceId } }, audio: false }
-      : { video: { facingMode: { ideal: 'environment' } }, audio: false };
+      ? { video: { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }
+      : { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false };
     currentStream = await navigator.mediaDevices.getUserMedia(constraints);
     video.srcObject = currentStream;
     await video.play();
     document.body.dataset.cam = 'ok';
     camHint.textContent = 'QRコードを枠内にかざしてください';
+ 
+    const track = currentStream.getVideoTracks()[0];
+    dbgDevice.textContent = (track && track.label) ? track.label : '(デバイス名を取得できません)';
+ 
     requestAnimationFrame(tick);
     await refreshDeviceList();
+ 
+    // 数秒経っても映像フレームが来ない場合は警告を出す（カメラが他アプリで使用中/認識不良など）
+    stallCheckTimer = setTimeout(() => {
+      if (video.readyState < video.HAVE_ENOUGH_DATA) {
+        setStatus('error', '映像を取得できていません。他のアプリがカメラを使用していないか、接続をご確認ください。');
+      } else {
+        setStatus('scanning', '読み取り待機中...');
+      }
+    }, 3000);
   } catch (err) {
     document.body.dataset.cam = 'error';
-    camErrorBox.textContent = 'カメラを起動できませんでした。ブラウザのアドレスバーからカメラへのアクセスを許可し、再読み込みしてください。';
+    setStatus('error', 'カメラを起動できませんでした');
+    camErrorBox.textContent = 'カメラを起動できませんでした（' + (err && err.name ? err.name : 'エラー') + '）。ブラウザのアドレスバーからカメラへのアクセスを許可し、再読み込みしてください。';
   }
 }
-
+ 
 function stopCamera() {
   if (currentStream) {
     currentStream.getTracks().forEach(t => t.stop());
     currentStream = null;
   }
 }
-
+ 
 async function refreshDeviceList() {
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
@@ -399,31 +494,38 @@ async function refreshDeviceList() {
     switchCamBtn.hidden = true;
   }
 }
-
+ 
 async function switchCamera() {
   if (videoDevices.length < 2) return;
   currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
   await startCamera(videoDevices[currentDeviceIndex].deviceId);
 }
-
+ 
 function tick() {
   if (state === 'idle' && video.readyState === video.HAVE_ENOUGH_DATA) {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
+    frameCounter++;
+    // attemptBoth: 明るい背景/暗い背景どちらのQRコードも検出しやすくする
+    const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
     if (code && code.data) handleDetected(code.data);
   }
   requestAnimationFrame(tick);
 }
-
+ 
 function handleDetected(raw) {
   const now = Date.now();
   if (raw === lastCode && now - lastScanTime < CONFIG.RESCAN_COOLDOWN_MS) return;
   lastCode = raw;
   lastScanTime = now;
-
+ 
+  setStatus('detected', 'QRコードを検出しました');
+  dbgLast.textContent = (raw.length > 40 ? raw.slice(0, 40) + '…' : raw) + '  [' + new Date().toLocaleTimeString('ja-JP') + ']';
+  frameEl.classList.add('flash-detect');
+  setTimeout(() => frameEl.classList.remove('flash-detect'), 500);
+ 
   let parsed;
   try {
     parsed = JSON.parse(raw);
@@ -435,7 +537,7 @@ function handleDetected(raw) {
   renderTicket(parsed);
   setState('confirm');
 }
-
+ 
 /* ---------- チケット表示 ---------- */
 function makeRow(label, value, mono) {
   const row = document.createElement('div');
@@ -445,13 +547,13 @@ function makeRow(label, value, mono) {
   row.append(l, v);
   return row;
 }
-
+ 
 function renderTicket(data) {
   const primary = FIELDS.find(f => f.primary);
   const sub = FIELDS.find(f => f.sub);
   ticketName.textContent = (primary && data[primary.key]) ? data[primary.key] : (data.name || 'ゲスト');
   ticketFurigana.textContent = (sub && data[sub.key]) ? data[sub.key] : '';
-
+ 
   ticketRows.innerHTML = '';
   const known = new Set(FIELDS.map(f => f.key));
   FIELDS.forEach(f => {
@@ -462,7 +564,7 @@ function renderTicket(data) {
     if (!known.has(k)) ticketRows.appendChild(makeRow(k, data[k], false));
   });
 }
-
+ 
 /* ---------- 送信 ---------- */
 async function sendReception() {
   setState('sending');
@@ -485,7 +587,7 @@ async function sendReception() {
     document.getElementById('confirmBtn').textContent = '受付する';
   }
 }
-
+ 
 function showSuccess(number) {
   successName.textContent = ticketName.textContent;
   successNumber.textContent = number ? ('No.' + String(number).padStart(3, '0')) : '受付済';
@@ -500,15 +602,16 @@ function showSuccess(number) {
   clearTimeout(resetTimer);
   resetTimer = setTimeout(resetToIdle, CONFIG.AUTO_RESET_MS);
 }
-
+ 
 function resetToIdle() {
   clearTimeout(resetTimer);
   clearInterval(countdownTimer);
   lastCode = null;
   currentData = null;
   setState('idle');
+  if (document.body.dataset.cam === 'ok') setStatus('scanning', '読み取り待機中...');
 }
-
+ 
 /* ---------- イベント ---------- */
 document.getElementById('confirmBtn').addEventListener('click', sendReception);
 document.getElementById('rescanBtn').addEventListener('click', resetToIdle);
@@ -516,7 +619,22 @@ document.getElementById('rescanBtn2').addEventListener('click', resetToIdle);
 document.getElementById('nextBtn').addEventListener('click', resetToIdle);
 document.getElementById('retrySendBtn').addEventListener('click', sendReception);
 switchCamBtn.addEventListener('click', switchCamera);
-
+ 
+debugToggle.addEventListener('click', () => {
+  const open = debugPanel.classList.toggle('open');
+  debugToggle.textContent = open ? '詳細情報を隠す ▴' : '詳細情報を表示 ▾';
+});
+manualTestToggle.addEventListener('click', () => {
+  const open = manualTest.classList.toggle('open');
+  manualTestToggle.textContent = open ? 'テスト入力を隠す ▴' : 'QRコードなしでテスト入力 ▸';
+});
+manualSubmit.addEventListener('click', () => {
+  const text = manualInput.value.trim();
+  if (!text) return;
+  lastCode = null; // 手動テストはクールダウンを無視して常に反映する
+  handleDetected(text);
+});
+ 
 startCamera();
 </script>
 </body>
